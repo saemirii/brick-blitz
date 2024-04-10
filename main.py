@@ -74,12 +74,21 @@ stage_names = {
     3: "Cyber Challenge"
 }
 
+# Countdown variables
+countdown_timer = 0
+countdown_font = pygame.font.SysFont(None, 72)
+
 # Functions
 
 def reset_ball_position():
     global ball_x, ball_y
     ball_x = SCREEN_WIDTH // 2
     ball_y = SCREEN_HEIGHT // 2
+
+def set_initial_ball_position():
+    global ball_x, ball_y
+    ball_x = paddle_x + PADDLE_WIDTH // 2  # Set ball's initial x-position aligned with paddle
+    ball_y = paddle_y - BALL_RADIUS  # Set ball's initial y-position just above the paddle
 
 def reset_game():
     global score, game_over, ball_dx, ball_dy, bricks, paddle_x, paddle_y
@@ -88,16 +97,27 @@ def reset_game():
     reset_ball_position()
     paddle_x = (SCREEN_WIDTH - PADDLE_WIDTH) // 2  # Reset paddle position
     paddle_y = SCREEN_HEIGHT - PADDLE_HEIGHT - 10
+    set_initial_ball_position()
     if stage == 1:
         ball_dx = random.choice([-1, 1]) * (2 + stage)
         ball_dy = -(2 + stage)
     elif stage == 2:
-        ball_dx = random.choice([-1, 1]) * 4
-        ball_dy = -4
+        ball_dx = 2
+        ball_dy = -2
     elif stage == 3:
-        ball_dx = random.choice([-1, 1]) * 6
-        ball_dy = -6
+        ball_dx = 2
+        ball_dy = -2
     bricks = generate_bricks()
+
+def skip_to_next_stage():
+    global stage
+    if stage < 3:
+        stage += 1
+        reset_game()
+        set_initial_ball_position()  # Set initial ball position when skipping stages
+    else:
+        game_over = True
+
 
 def generate_bricks():
     bricks = []
@@ -162,17 +182,19 @@ def draw_game():
         paddle_x = 0
     elif paddle_x > SCREEN_WIDTH - PADDLE_WIDTH:
         paddle_x = SCREEN_WIDTH - PADDLE_WIDTH
-    # Update ball position
-    ball_x += ball_dx
-    ball_y += ball_dy
+    # Update ball position if game is not over
+    if not game_over:
+        ball_x += ball_dx
+        ball_y += ball_dy
     # Collision detection with walls
     if ball_x <= 0 or ball_x >= SCREEN_WIDTH:
         ball_dx *= -1
     if ball_y <= 0:
         ball_dy *= -1
     # Collision detection with paddle
-    if ball_y >= paddle_y - BALL_RADIUS and ball_x >= paddle_x and ball_x <= paddle_x + PADDLE_WIDTH:
+    if ball_y + BALL_RADIUS >= paddle_y and ball_y + BALL_RADIUS <= paddle_y + PADDLE_HEIGHT and ball_x >= paddle_x and ball_x <= paddle_x + PADDLE_WIDTH:
         ball_dy *= -1
+
     # Collision detection with bricks
     for brick, color in bricks:
         if pygame.Rect(ball_x - BALL_RADIUS, ball_y - BALL_RADIUS, BALL_RADIUS * 2, BALL_RADIUS * 2).colliderect(
@@ -213,14 +235,14 @@ def adjust_stage_properties():
     if stage == 2:
         # Stage 2 (Arctic) adjustments
         BALL_RADIUS = 12
-        ball_dx = 4
-        ball_dy = -4
+        ball_dx = 2
+        ball_dy = -2
         PADDLE_WIDTH = 150
     elif stage == 3:
         # Stage 3 (Cyber) adjustments
         BALL_RADIUS = 8
-        ball_dx = 6
-        ball_dy = -6
+        ball_dx = 2
+        ball_dy = -2
         PADDLE_WIDTH = 100
 
 def draw_stage_text():
@@ -240,6 +262,20 @@ def skip_to_next_stage():
     else:
         game_over = True
 
+def start_countdown():
+    global countdown_timer
+    countdown_timer = 180  # 3 seconds at 60 frames per second
+
+def draw_countdown():
+    countdown_text = str((countdown_timer // 60) + 1)
+    if countdown_timer // 60 == 0:
+        countdown_text = "Go!"
+    countdown_surface = countdown_font.render(countdown_text, True, WHITE)
+    countdown_rect = countdown_surface.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
+    SCREEN.blit(countdown_surface, countdown_rect)
+    print("Drawing countdown")  # Added print statement
+    print("Countdown Timer:", countdown_timer)  # Print countdown timer value
+
 # Game loop
 running = True
 while running:
@@ -252,9 +288,11 @@ while running:
             elif event.key == pygame.K_r and game_over:
                 reset_game()
                 current_state = GAME
+                start_countdown()
             elif event.key == pygame.K_SPACE and current_state == MENU:
                 reset_game()
                 current_state = GAME
+                start_countdown()
             elif event.key == pygame.K_m:
                 go_to_main_menu()
             elif event.key == pygame.K_s:
@@ -262,15 +300,26 @@ while running:
     if current_state == MENU:
         draw_menu()
     elif current_state == GAME:
-        adjust_stage_properties()
-        draw_stage_text()
-        draw_game()
-        if len(bricks) == 0:
-            if score >= (stage + 1) * 20:
-                high_scores[stage_names[stage]] = max(high_scores[stage_names[stage]], score)
-                skip_to_next_stage()
-            else:
-                game_over = True
+        if countdown_timer > 0:
+            draw_countdown()
+            countdown_timer -= 1
+            # Reset ball position and velocity during countdown
+            #ball_x = SCREEN_WIDTH // 2
+            #ball_y = SCREEN_HEIGHT // 2
+            #ball_dx = 0
+            #ball_dy = 0
+            # Reset paddle position during countdown
+            #paddle_x = (SCREEN_WIDTH - PADDLE_WIDTH) // 2
+        else:
+            adjust_stage_properties()
+            draw_stage_text()
+            draw_game()
+            if len(bricks) == 0:
+                if score >= (stage + 1) * 20:
+                    high_scores[stage_names[stage]] = max(high_scores[stage_names[stage]], score)
+                    skip_to_next_stage()
+                else:
+                    game_over = True
     elif current_state == WIN:
         draw_win()
     pygame.display.flip()
