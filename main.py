@@ -16,6 +16,9 @@ BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 BLUE = (0, 0, 255)
 GREEN = (0, 255, 0)
+NEON_PINK = (255, 105, 180)
+NEON_BLUE = (0, 191, 255)
+RAINBOW_COLORS = [(255, 0, 0), (255, 165, 0), (255, 255, 0), (0, 128, 0), (0, 0, 255), (75, 0, 130), (238, 130, 238)]
 
 # Game states
 MENU = 0
@@ -59,9 +62,9 @@ current_state = MENU
 
 # High score dictionary for each stage
 high_scores = {
-    "Jungle": 0,
-    "Arctic": 0,
-    "Cyber": 0
+    "Jungle Jive": 0,
+    "Arctic Adventure": 0,
+    "Cyber Challenge": 0
 }
 
 # Stage names
@@ -73,14 +76,27 @@ stage_names = {
 
 # Functions
 
+def reset_ball_position():
+    global ball_x, ball_y
+    ball_x = SCREEN_WIDTH // 2
+    ball_y = SCREEN_HEIGHT // 2
+
 def reset_game():
     global score, game_over, ball_dx, ball_dy, bricks, paddle_x, paddle_y
     score = 0
     game_over = False
+    reset_ball_position()
     paddle_x = (SCREEN_WIDTH - PADDLE_WIDTH) // 2  # Reset paddle position
     paddle_y = SCREEN_HEIGHT - PADDLE_HEIGHT - 10
-    ball_dx = random.choice([-1, 1]) * (2 + stage)
-    ball_dy = -(2 + stage)
+    if stage == 1:
+        ball_dx = random.choice([-1, 1]) * (2 + stage)
+        ball_dy = -(2 + stage)
+    elif stage == 2:
+        ball_dx = random.choice([-1, 1]) * 4
+        ball_dy = -4
+    elif stage == 3:
+        ball_dx = random.choice([-1, 1]) * 6
+        ball_dy = -6
     bricks = generate_bricks()
 
 def generate_bricks():
@@ -91,13 +107,33 @@ def generate_bricks():
     brick_height = 20 + stage * 3
     for row in range(rows):
         for col in range(cols):
-            brick = pygame.Rect(
-                col * (brick_width + BRICK_PADDING) + BRICK_PADDING,
-                row * (brick_height + BRICK_PADDING) + BRICK_PADDING,
-                brick_width,
-                brick_height,
-            )
-            bricks.append(brick)
+            if stage == 2:
+                # Adjust brick layout for Arctic Adventure (castle-like pattern)
+                brick = pygame.Rect(
+                    col * (brick_width + BRICK_PADDING) + BRICK_PADDING,
+                    row * (brick_height + BRICK_PADDING) + BRICK_PADDING,
+                    brick_width,
+                    brick_height if col % 2 == 0 else brick_height - 5,  # Adjust column heights
+                )
+                bricks.append((brick, NEON_PINK if col % 2 == 0 else NEON_BLUE))
+            elif stage == 3:
+                # Adjust brick layout for Cyber Challenge (pyramid shape)
+                if col >= (rows - row) // 2 and col < cols - (rows - row) // 2:
+                    brick = pygame.Rect(
+                        col * (brick_width + BRICK_PADDING) + BRICK_PADDING,
+                        row * (brick_height + BRICK_PADDING) + BRICK_PADDING,
+                        brick_width,
+                        brick_height,
+                    )
+                    bricks.append((brick, random.choice(RAINBOW_COLORS)))
+            else:
+                brick = pygame.Rect(
+                    col * (brick_width + BRICK_PADDING) + BRICK_PADDING,
+                    row * (brick_height + BRICK_PADDING) + BRICK_PADDING,
+                    brick_width,
+                    brick_height,
+                )
+                bricks.append((brick, GREEN))
     return bricks
 
 def draw_menu():
@@ -138,11 +174,11 @@ def draw_game():
     if ball_y >= paddle_y - BALL_RADIUS and ball_x >= paddle_x and ball_x <= paddle_x + PADDLE_WIDTH:
         ball_dy *= -1
     # Collision detection with bricks
-    for brick in bricks:
+    for brick, color in bricks:
         if pygame.Rect(ball_x - BALL_RADIUS, ball_y - BALL_RADIUS, BALL_RADIUS * 2, BALL_RADIUS * 2).colliderect(
             brick
         ):
-            bricks.remove(brick)
+            bricks.remove((brick, color))
             ball_dy *= -1
             score += 1
     # Check if the ball falls off the bottom of the screen
@@ -153,8 +189,8 @@ def draw_game():
     # Draw ball
     pygame.draw.circle(SCREEN, BALL_COLOR, (ball_x, ball_y), BALL_RADIUS)
     # Draw bricks
-    for brick in bricks:
-        pygame.draw.rect(SCREEN, GREEN, brick)
+    for brick, color in bricks:
+        pygame.draw.rect(SCREEN, color, brick)
     # Display score
     font = pygame.font.SysFont(None, 36)
     score_text = font.render(f"Score: {score}", True, WHITE)
@@ -176,15 +212,15 @@ def adjust_stage_properties():
     global BALL_RADIUS, ball_dx, ball_dy, PADDLE_WIDTH
     if stage == 2:
         # Stage 2 (Arctic) adjustments
-        BALL_RADIUS = 8
-        ball_dx = random.choice([-1, 1]) * 3  # Adjust ball speed
-        ball_dy = -3  # Adjust ball speed
+        BALL_RADIUS = 12
+        ball_dx = 4
+        ball_dy = -4
         PADDLE_WIDTH = 150
     elif stage == 3:
         # Stage 3 (Cyber) adjustments
-        BALL_RADIUS = 6.5
-        ball_dx = random.choice([-1, 1]) * 4  # Adjust ball speed
-        ball_dy = -4  # Adjust ball speed
+        BALL_RADIUS = 8
+        ball_dx = 6
+        ball_dy = -6
         PADDLE_WIDTH = 100
 
 def draw_stage_text():
